@@ -1,0 +1,18 @@
+[Unit]
+Description=HDD Temperature Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+# 请修改为脚本实际存放的绝对路径
+ExecStart=/usr/local/bin/hdd_temp_monitor.sh
+Restart=always
+# 确保脚本有 root 权限以运行 hdparm 和 smartctl
+User=root
+# 日志输出到 syslog
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=hdd_temp_mon
+
+[Install]
+WantedBy=multi-user.target
