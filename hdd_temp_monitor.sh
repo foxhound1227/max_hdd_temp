@@ -95,6 +95,9 @@ CPU_OVER_60_COUNT=0
 CPU_OVER_65_COUNT=0
 CPU_BELOW_60_COUNT=0
 
+# 当前生效的模拟温度 (初始化为 0)
+CURRENT_SIMULATED_TEMP=0
+
 while true; do
     MAX_TEMP=0
     TEMP_FOUND=false
@@ -137,12 +140,12 @@ while true; do
 
     # 2. 检查 CPU 温度
     CURRENT_CPU_TEMP=$(get_cpu_temp)
-    SIMULATED_HDD_TEMP=0
+    # SIMULATED_HDD_TEMP 将使用 CURRENT_SIMULATED_TEMP，除非发生状态切换
 
-    # 更新计数器
+    # 更新计数器 (区间互斥，确保状态切换需要连续确认)
     if [ "$CURRENT_CPU_TEMP" -gt 65 ]; then
         CPU_OVER_65_COUNT=$((CPU_OVER_65_COUNT + 1))
-        CPU_OVER_60_COUNT=$((CPU_OVER_60_COUNT + 1))
+        CPU_OVER_60_COUNT=0
         CPU_BELOW_60_COUNT=0
     elif [ "$CURRENT_CPU_TEMP" -gt 60 ]; then
         CPU_OVER_65_COUNT=0
@@ -154,19 +157,22 @@ while true; do
         CPU_BELOW_60_COUNT=$((CPU_BELOW_60_COUNT + 1))
     fi
 
-    # 判断是否需要模拟硬盘温度
+    # 判断是否需要切换模拟温度
     if [ "$CPU_OVER_65_COUNT" -ge 2 ]; then
-        log "CPU 温度连续 $CPU_OVER_65_COUNT 次超过 65°C (当前: $CURRENT_CPU_TEMP°C)，模拟硬盘温度 45°C"
-        SIMULATED_HDD_TEMP=45
+        log "CPU 温度连续 $CPU_OVER_65_COUNT 次超过 65°C (当前: $CURRENT_CPU_TEMP°C) -> 切换模拟温度为 45°C"
+        CURRENT_SIMULATED_TEMP=45
     elif [ "$CPU_OVER_60_COUNT" -ge 2 ]; then
-        log "CPU 温度连续 $CPU_OVER_60_COUNT 次超过 60°C (当前: $CURRENT_CPU_TEMP°C)，模拟硬盘温度 40°C"
-        SIMULATED_HDD_TEMP=40
+        log "CPU 温度连续 $CPU_OVER_60_COUNT 次超过 60°C (当前: $CURRENT_CPU_TEMP°C) -> 切换模拟温度为 40°C"
+        CURRENT_SIMULATED_TEMP=40
     elif [ "$CPU_BELOW_60_COUNT" -ge 2 ]; then
-        log "CPU 温度连续 $CPU_BELOW_60_COUNT 次低于 60°C (当前: $CURRENT_CPU_TEMP°C)，模拟硬盘温度 10°C"
-        SIMULATED_HDD_TEMP=10
+        log "CPU 温度连续 $CPU_BELOW_60_COUNT 次低于 60°C (当前: $CURRENT_CPU_TEMP°C) -> 切换模拟温度为 10°C"
+        CURRENT_SIMULATED_TEMP=10
     else
-        log "CPU 温度正常 (当前: $CURRENT_CPU_TEMP°C)"
+        # 状态保持 (计数器未达标)
+        log "CPU 温度 $CURRENT_CPU_TEMP°C (状态未确认: >65:$CPU_OVER_65_COUNT, >60:$CPU_OVER_60_COUNT, <60:$CPU_BELOW_60_COUNT) -> 保持当前模拟温度 $CURRENT_SIMULATED_TEMP°C"
     fi
+
+    SIMULATED_HDD_TEMP=$CURRENT_SIMULATED_TEMP
 
     # 3. 汇总最高温度
     # 如果有模拟温度且高于当前硬盘最高温度，则使用模拟温度
