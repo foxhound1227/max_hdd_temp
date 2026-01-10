@@ -1,0 +1,16 @@
+[Unit]
+Description=HDD Temperature Monitor Service
+After=network.target
+
+[Service]
+# 请根据实际脚本路径修改 ExecStart
+ExecStart=/bin/bash /vol1/1000/docker/CoolerControl/hdd_temp_monitor.sh
+Restart=always
+RestartSec=10
+User=root
+# 可以在此处设置环境变量覆盖默认配置
+# Environment=CHECK_INTERVAL=10m
+# Environment=DRIVES="/dev/sdc /dev/sdd"
+
+[Install]
+WantedBy=multi-user.target
